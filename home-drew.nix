@@ -15,8 +15,8 @@
 
   # Git user configuration
   programs.git = {
-    userName = "Drew";
-    userEmail = "drew@example.com";
+    userName = "Drew MacPhee";
+    userEmail = "1778064+drewmacphee@users.noreply.github.com";
   };
 
   # OneDrive configuration
