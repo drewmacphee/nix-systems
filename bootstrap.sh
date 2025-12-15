@@ -5,9 +5,9 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/drewmacphee/nix-kids-laptop"
-VAULT_NAME="nix-kids-laptop"
+VAULT_NAME="bazztop"
 SECRET_NAME="age-identity"
-HOSTNAME="nix-kids-laptop"
+HOSTNAME="bazztop"
 
 # Error handler
 trap 'echo "ERROR: Bootstrap failed at line $LINENO. Check output above for details." >&2; exit 1' ERR

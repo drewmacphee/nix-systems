@@ -10,7 +10,7 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   # Networking
-  networking.hostName = "nix-kids-laptop";
+  networking.hostName = "bazztop";
   networking.networkmanager.enable = true;
   
   # Automatic WiFi connection from secrets
