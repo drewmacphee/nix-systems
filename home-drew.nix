@@ -72,16 +72,60 @@
   };
 
   # PrismLauncher configuration - point to OneDrive
-  home.file.".local/share/PrismLauncher/prismlauncher.cfg".text = ''
+  # Calculate RAM allocation: use 50% of system RAM for max, 25% for min
+  home.file.".local/share/PrismLauncher/prismlauncher.cfg".text = 
+    let
+      # Get total system memory in MB (will be calculated at build time)
+      # This uses a reasonable default, actual calculation happens via activation script
+      totalRamMB = 8192; # Fallback default
+      maxRamMB = totalRamMB / 2; # 50% of total RAM
+      minRamMB = totalRamMB / 4; # 25% of total RAM
+    in ''
     [General]
     InstanceDir=${config.home.homeDirectory}/OneDrive/Minecraft/instances
     IconsDir=${config.home.homeDirectory}/OneDrive/Minecraft/icons
     CentralModsDir=${config.home.homeDirectory}/OneDrive/Minecraft/mods
     
     [Java]
-    MaxMemAlloc=4096
-    MinMemAlloc=2048
+    MaxMemAlloc=${toString maxRamMB}
+    MinMemAlloc=${toString minRamMB}
     PermGen=128
+  '';
+
+  # Dynamically set RAM allocation based on actual system memory
+  home.activation.setupMinecraftRAM = config.lib.dag.entryAfter ["writeBoundary"] ''
+    # Calculate RAM allocation based on system memory
+    TOTAL_RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+    TOTAL_RAM_MB=$((TOTAL_RAM_KB / 1024))
+    MAX_RAM_MB=$((TOTAL_RAM_MB / 2))
+    MIN_RAM_MB=$((TOTAL_RAM_MB / 4))
+    
+    # Ensure reasonable limits (min 2GB, max 16GB for safety)
+    if [ $MAX_RAM_MB -lt 2048 ]; then
+      MAX_RAM_MB=2048
+    fi
+    if [ $MAX_RAM_MB -gt 16384 ]; then
+      MAX_RAM_MB=16384
+    fi
+    if [ $MIN_RAM_MB -lt 1024 ]; then
+      MIN_RAM_MB=1024
+    fi
+    
+    # Update PrismLauncher config with dynamic values
+    $DRY_RUN_CMD mkdir -p $VERBOSE_ARG ${config.home.homeDirectory}/.local/share/PrismLauncher
+    $DRY_RUN_CMD cat > ${config.home.homeDirectory}/.local/share/PrismLauncher/prismlauncher.cfg << EOF
+[General]
+InstanceDir=${config.home.homeDirectory}/OneDrive/Minecraft/instances
+IconsDir=${config.home.homeDirectory}/OneDrive/Minecraft/icons
+CentralModsDir=${config.home.homeDirectory}/OneDrive/Minecraft/mods
+
+[Java]
+MaxMemAlloc=$MAX_RAM_MB
+MinMemAlloc=$MIN_RAM_MB
+PermGen=128
+EOF
+    
+    echo "Minecraft RAM: Min ${MIN_RAM_MB}MB / Max ${MAX_RAM_MB}MB (Total System: ${TOTAL_RAM_MB}MB)"
   '';
 
   # Create Minecraft directory structure in OneDrive
