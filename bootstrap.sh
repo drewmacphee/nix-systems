@@ -235,19 +235,20 @@ rm -f /tmp/drew-password /tmp/emily-password /tmp/bella-password
 rm -f /tmp/wifi-ssid /tmp/wifi-password
 
 echo ""
-echo "Step 6: Applying NixOS configuration..."
-echo "This will take several minutes (downloading packages)..."
+echo "Step 6: Updating configuration with hostname ($HOSTNAME)..."
 
 cd /etc/nixos || {
   echo "ERROR: Cannot change to /etc/nixos directory"
   exit 1
 }
 
-# Set the hostname using NixOS-friendly method
-echo "Setting hostname to: $HOSTNAME"
-hostnamectl set-hostname "$HOSTNAME" 2>/dev/null || {
-  echo "WARNING: Could not set hostname with hostnamectl (will be set during nixos-rebuild)"
-}
+# Update hostname in configuration.nix
+sed -i "s/networking.hostname = \".*\";/networking.hostname = \"$HOSTNAME\";/" configuration.nix
+echo "✓ Hostname set to: $HOSTNAME"
+
+echo ""
+echo "Step 7: Applying NixOS configuration..."
+echo "This will take several minutes (downloading packages)..."
 
 # Copy secrets to /etc/nixos for the build
 echo "Copying secrets for NixOS build..."
@@ -275,7 +276,7 @@ fi
 echo "✓ NixOS configuration applied successfully"
 
 echo ""
-echo "Step 7: Setting user passwords..."
+echo "Step 8: Setting user passwords..."
 
 # Verify users were created
 for user in drew emily bella; do
