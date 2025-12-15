@@ -154,19 +154,28 @@
   # Enable flakes
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  # Auto-upgrade
+  # Automatic system updates
   system.autoUpgrade = {
     enable = true;
-    flake = "github:drewmacphee/nix-kids-laptop#nix-kids-laptop";
-    allowReboot = false;
+    allowReboot = false;  # Never auto-reboot (could interrupt gaming)
+    dates = "03:00";      # Check for updates at 3am daily
+    flake = "github:drewmacphee/nix-kids-laptop";
+    flags = [
+      "--update-input" "nixpkgs"
+      "--update-input" "home-manager"
+      "--commit-lock-file"
+    ];
   };
 
-  # Automatic garbage collection
+  # Automatic garbage collection (cleanup old generations)
   nix.gc = {
     automatic = true;
     dates = "weekly";
     options = "--delete-older-than 30d";
   };
+
+  # Keep last 10 boot entries for rollback
+  boot.loader.systemd-boot.configurationLimit = 10;
 
   system.stateVersion = "24.05";
 }
