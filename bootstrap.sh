@@ -71,7 +71,8 @@ echo "========================================"
 echo ""
 
 # Prompt for hostname
-read -p "Enter hostname for this machine (e.g., bazztop, emily-laptop): " HOSTNAME
+echo "Enter hostname for this machine (e.g., bazztop, emily-laptop):"
+read -r HOSTNAME </dev/tty
 if [ -z "$HOSTNAME" ]; then
   echo "ERROR: Hostname cannot be empty"
   exit 1
