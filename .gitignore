@@ -1,0 +1,17 @@
+# Nix build artifacts
+result
+result-*
+
+# Hardware config (machine-specific, generated during install)
+# Uncomment if you want to version control it:
+# hardware-configuration.nix
+
+# Secrets directory (fetched from Key Vault at runtime)
+secrets/
+
+# Backup files
+*.backup.*
+
+# OS files
+.DS_Store
+Thumbs.db
