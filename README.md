@@ -42,11 +42,21 @@ A fully portable NixOS configuration for children's laptops with remote administ
 
 Done! OneDrive will sync on first login.
 
+## Documentation
+
+- **[docs/SETUP-SIMPLIFIED.md](docs/SETUP-SIMPLIFIED.md)** - Step-by-step setup guide
+- **[docs/KEYVAULT-SETUP-GUIDE.md](docs/KEYVAULT-SETUP-GUIDE.md)** - Azure Key Vault configuration
+- **[docs/ONEDRIVE-SETUP.md](docs/ONEDRIVE-SETUP.md)** - OneDrive integration guide
+- **[docs/MINECRAFT-SETUP-GUIDE.md](docs/MINECRAFT-SETUP-GUIDE.md)** - Minecraft/PrismLauncher config
+- **[docs/MINECRAFT-LAN-GUIDE.md](docs/MINECRAFT-LAN-GUIDE.md)** - LAN multiplayer setup
+- **[docs/PRIVATE-REPO-GUIDE.md](docs/PRIVATE-REPO-GUIDE.md)** - Making the repo private
+- **[STATUS.md](STATUS.md)** - Current project status
+
 ## Setup Requirements
 
 ### Azure Key Vault Setup
 
-1. Store rclone configs for each user (see [ONEDRIVE-SETUP.md](ONEDRIVE-SETUP.md)):
+1. Store rclone configs for each user (see [docs/ONEDRIVE-SETUP.md](docs/ONEDRIVE-SETUP.md)):
    ```bash
    az keyvault secret set --vault-name nix-kids-laptop --name drew-rclone-config --file ~/.config/rclone/rclone.conf
    az keyvault secret set --vault-name nix-kids-laptop --name emily-rclone-config --file ~/.config/rclone/rclone.conf
