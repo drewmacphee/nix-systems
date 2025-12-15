@@ -25,7 +25,10 @@
   };
 
   # Timezone and locale
+  # Timezone with automatic detection
   time.timeZone = "America/New_York";
+  services.geoclue2.enable = true;
+  services.automatic-timezoned.enable = true;
   i18n.defaultLocale = "en_US.UTF-8";
 
   # Enable X11 and GNOME
