@@ -71,78 +71,58 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo "Step 1: Installing temporary dependencies..."
-nix-shell -p azure-cli git --run "
-  # Retry function for network operations (redefined in nix-shell)
-  retry_command() {
-    local max_attempts=3
-    local attempt=1
-    local delay=5
-    
-    while [ \$attempt -le \$max_attempts ]; do
-      if \"\$@\"; then
-        return 0
-      fi
-      
-      if [ \$attempt -lt \$max_attempts ]; then
-        echo \"Attempt \$attempt/\$max_attempts failed, retrying in \${delay}s...\"
-        sleep \$delay
-        delay=\$((delay * 2))
-      fi
-      attempt=\$((attempt + 1))
-    done
-    
-    echo \"ERROR: Command failed after \$max_attempts attempts: \$*\"
-    return 1
-  }
+nix-shell -p azure-cli git --run bash <<'AZURE_LOGIN'
+set -euo pipefail
 
-  echo 'Step 2: Authenticating with Azure...'
-  echo 'Please login with your Microsoft account:'
+echo 'Step 2: Authenticating with Azure...'
+echo 'Please login with your Microsoft account:'
+
+# Azure login with retry
+max_attempts=3
+attempt=1
+
+while [ $attempt -le $max_attempts ]; do
+  if az login --use-device-code; then
+    echo "✓ Azure login successful"
+    break
+  fi
   
-  if ! retry_command az login --use-device-code; then
+  if [ $attempt -lt $max_attempts ]; then
+    echo "Attempt $attempt/$max_attempts failed, retrying..."
+    sleep 5
+  else
     echo 'ERROR: Azure login failed after multiple attempts'
     exit 1
   fi
+  attempt=$((attempt + 1))
+done
   
-  echo ''
-  echo 'Step 3: Fetching secrets from Azure Key Vault...'
-  
-  # Fetch all secrets with retry logic
-  echo 'Fetching rclone configs...'
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name drew-rclone-config --query value -o tsv > /tmp/drew-rclone.conf
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name emily-rclone-config --query value -o tsv > /tmp/emily-rclone.conf
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name bella-rclone-config --query value -o tsv > /tmp/bella-rclone.conf
-  
-  echo 'Fetching SSH authorized keys...'
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name drew-ssh-authorized-keys --query value -o tsv > /tmp/drew-ssh-keys
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name emily-ssh-authorized-keys --query value -o tsv > /tmp/emily-ssh-keys
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name bella-ssh-authorized-keys --query value -o tsv > /tmp/bella-ssh-keys
-  
-  echo 'Fetching user passwords...'
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name drew-password --query value -o tsv > /tmp/drew-password
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name emily-password --query value -o tsv > /tmp/emily-password
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name bella-password --query value -o tsv > /tmp/bella-password
-  
-  echo 'Fetching WiFi credentials...'
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name wifi-ssid --query value -o tsv > /tmp/wifi-ssid
-  retry_command az keyvault secret show --vault-name ${VAULT_NAME} --name wifi-password --query value -o tsv > /tmp/wifi-password
-  
-  echo ''
-  echo 'Validating fetched secrets...'
-  validate_secret /tmp/drew-rclone.conf 'Drew rclone config'
-  validate_secret /tmp/emily-rclone.conf 'Emily rclone config'
-  validate_secret /tmp/bella-rclone.conf 'Bella rclone config'
-  validate_secret /tmp/drew-ssh-keys 'Drew SSH keys'
-  validate_secret /tmp/emily-ssh-keys 'Emily SSH keys'
-  validate_secret /tmp/bella-ssh-keys 'Bella SSH keys'
-  validate_secret /tmp/drew-password 'Drew password'
-  validate_secret /tmp/emily-password 'Emily password'
-  validate_secret /tmp/bella-password 'Bella password'
-  validate_secret /tmp/wifi-ssid 'WiFi SSID'
-  validate_secret /tmp/wifi-password 'WiFi password'
-  
-  echo ''
-  echo '✓ All secrets retrieved and validated successfully!'
-"
+echo ''
+echo 'Step 3: Fetching secrets from Azure Key Vault...'
+
+# Fetch all secrets with retry logic
+echo 'Fetching rclone configs...'
+az keyvault secret show --vault-name ${VAULT_NAME} --name drew-rclone-config --query value -o tsv > /tmp/drew-rclone.conf || exit 1
+az keyvault secret show --vault-name ${VAULT_NAME} --name emily-rclone-config --query value -o tsv > /tmp/emily-rclone.conf || exit 1
+az keyvault secret show --vault-name ${VAULT_NAME} --name bella-rclone-config --query value -o tsv > /tmp/bella-rclone.conf || exit 1
+
+echo 'Fetching SSH authorized keys...'
+az keyvault secret show --vault-name ${VAULT_NAME} --name drew-ssh-authorized-keys --query value -o tsv > /tmp/drew-ssh-keys || exit 1
+az keyvault secret show --vault-name ${VAULT_NAME} --name emily-ssh-authorized-keys --query value -o tsv > /tmp/emily-ssh-keys || exit 1
+az keyvault secret show --vault-name ${VAULT_NAME} --name bella-ssh-authorized-keys --query value -o tsv > /tmp/bella-ssh-keys || exit 1
+
+echo 'Fetching user passwords...'
+az keyvault secret show --vault-name ${VAULT_NAME} --name drew-password --query value -o tsv > /tmp/drew-password || exit 1
+az keyvault secret show --vault-name ${VAULT_NAME} --name emily-password --query value -o tsv > /tmp/emily-password || exit 1
+az keyvault secret show --vault-name ${VAULT_NAME} --name bella-password --query value -o tsv > /tmp/bella-password || exit 1
+
+echo 'Fetching WiFi credentials...'
+az keyvault secret show --vault-name ${VAULT_NAME} --name wifi-ssid --query value -o tsv > /tmp/wifi-ssid || exit 1
+az keyvault secret show --vault-name ${VAULT_NAME} --name wifi-password --query value -o tsv > /tmp/wifi-password || exit 1
+
+echo ''
+echo '✓ All secrets retrieved successfully!'
+AZURE_LOGIN
 
 echo ""
 echo "Step 4: Cloning configuration repository..."
