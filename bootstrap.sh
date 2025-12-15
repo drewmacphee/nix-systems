@@ -8,9 +8,16 @@ REPO_URL="https://github.com/drewmacphee/nix-kids-laptop"
 VAULT_NAME="bazztop"
 SECRET_NAME="age-identity"
 HOSTNAME="bazztop"
+TENANT_ID="6e2722da-5af4-4c0f-878a-42db4d068c86"
 
 # Error handler
 trap 'echo "ERROR: Bootstrap failed at line $LINENO. Check output above for details." >&2; exit 1' ERR
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+  echo "ERROR: This script must be run as root (use sudo)"
+  exit 1
+fi
 
 # Validation function
 validate_secret() {
@@ -64,25 +71,44 @@ echo "NixOS Kids Laptop Bootstrap"
 echo "========================================"
 echo ""
 
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then 
-   echo "ERROR: Please run as root (use sudo)"
-   exit 1
+echo "Step 1: Checking prerequisites..."
+
+# Detect available browser
+BROWSER=""
+for browser in firefox chromium google-chrome-stable; do
+  if command -v $browser &> /dev/null; then
+    BROWSER=$browser
+    echo "✓ Found browser: $BROWSER"
+    break
+  fi
+done
+
+if [ -z "$BROWSER" ]; then
+  echo "WARNING: No browser found. Installing firefox temporarily..."
+  TEMP_PACKAGES="azure-cli git firefox"
+else
+  TEMP_PACKAGES="azure-cli git"
 fi
 
-echo "Step 1: Installing temporary dependencies..."
-nix-shell -p azure-cli git firefox --run bash <<'AZURE_LOGIN'
+echo "Step 2: Installing temporary dependencies..."
+nix-shell -p $TEMP_PACKAGES --run bash <<'AZURE_LOGIN'
 set -euo pipefail
 
-echo 'Step 2: Authenticating with Azure...'
+echo 'Step 3: Authenticating with Azure...'
 echo 'A browser window will open for Microsoft login with MFA'
 echo ''
 
-# Set browser for xdg-open
-export BROWSER=firefox
+# Detect browser again in nix-shell context
+for browser in firefox chromium google-chrome-stable; do
+  if command -v $browser &> /dev/null; then
+    export BROWSER=$browser
+    echo "Using browser: $BROWSER"
+    break
+  fi
+done
 
 # Azure login with browser-based auth
-if ! az login --tenant 6e2722da-5af4-4c0f-878a-42db4d068c86; then
+if ! az login --tenant 6e2722da-5af4-4c0f-878a-42db4d068c86 2>&1; then
   echo ''
   echo 'ERROR: Azure login failed. Please ensure:'
   echo '  - You have a browser available'
@@ -94,84 +120,64 @@ fi
 echo "✓ Azure login successful"
   
 echo ''
-echo 'Step 3: Fetching secrets from Azure Key Vault...'
+echo 'Step 4: Fetching secrets from Azure Key Vault...'
+
+VAULT_NAME="bazztop"
 
 # Fetch all secrets with retry logic
 echo 'Fetching rclone configs...'
-az keyvault secret show --vault-name ${VAULT_NAME} --name drew-rclone-config --query value -o tsv > /tmp/drew-rclone.conf || exit 1
-az keyvault secret show --vault-name ${VAULT_NAME} --name emily-rclone-config --query value -o tsv > /tmp/emily-rclone.conf || exit 1
-az keyvault secret show --vault-name ${VAULT_NAME} --name bella-rclone-config --query value -o tsv > /tmp/bella-rclone.conf || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name drew-rclone-config --query value -o tsv > /tmp/drew-rclone.conf || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name emily-rclone-config --query value -o tsv > /tmp/emily-rclone.conf || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name bella-rclone-config --query value -o tsv > /tmp/bella-rclone.conf || exit 1
 
 echo 'Fetching SSH authorized keys...'
-az keyvault secret show --vault-name ${VAULT_NAME} --name drew-ssh-authorized-keys --query value -o tsv > /tmp/drew-ssh-keys || exit 1
-az keyvault secret show --vault-name ${VAULT_NAME} --name emily-ssh-authorized-keys --query value -o tsv > /tmp/emily-ssh-keys || exit 1
-az keyvault secret show --vault-name ${VAULT_NAME} --name bella-ssh-authorized-keys --query value -o tsv > /tmp/bella-ssh-keys || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name drew-ssh-authorized-keys --query value -o tsv > /tmp/drew-ssh-keys || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name emily-ssh-authorized-keys --query value -o tsv > /tmp/emily-ssh-keys || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name bella-ssh-authorized-keys --query value -o tsv > /tmp/bella-ssh-keys || exit 1
 
 echo 'Fetching user passwords...'
-az keyvault secret show --vault-name ${VAULT_NAME} --name drew-password --query value -o tsv > /tmp/drew-password || exit 1
-az keyvault secret show --vault-name ${VAULT_NAME} --name emily-password --query value -o tsv > /tmp/emily-password || exit 1
-az keyvault secret show --vault-name ${VAULT_NAME} --name bella-password --query value -o tsv > /tmp/bella-password || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name drew-password --query value -o tsv > /tmp/drew-password || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name emily-password --query value -o tsv > /tmp/emily-password || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name bella-password --query value -o tsv > /tmp/bella-password || exit 1
 
 echo 'Fetching WiFi credentials...'
-az keyvault secret show --vault-name ${VAULT_NAME} --name wifi-ssid --query value -o tsv > /tmp/wifi-ssid || exit 1
-az keyvault secret show --vault-name ${VAULT_NAME} --name wifi-password --query value -o tsv > /tmp/wifi-password || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name wifi-ssid --query value -o tsv > /tmp/wifi-ssid || exit 1
+az keyvault secret show --vault-name $VAULT_NAME --name wifi-password --query value -o tsv > /tmp/wifi-password || exit 1
 
 echo ''
 echo '✓ All secrets retrieved successfully!'
 AZURE_LOGIN
 
 echo ""
-echo "Step 4: Cloning configuration repository..."
+echo "Step 5: Cloning configuration repository..."
 
-# Preserve the real hardware-configuration.nix
-if [ -f "/etc/nixos/hardware-configuration.nix" ]; then
-  echo "Backing up real hardware-configuration.nix..."
-  cp /etc/nixos/hardware-configuration.nix /tmp/hardware-configuration.nix.real || {
-    echo "ERROR: Failed to backup hardware-configuration.nix"
-    exit 1
-  }
-else
-  echo "WARNING: No existing hardware-configuration.nix found"
-  echo "This is expected on first install, but ensure one exists after nixos-generate-config"
+# Clean slate approach - backup existing config
+if [ -d "/etc/nixos" ] && [ "$(ls -A /etc/nixos)" ]; then
+  echo "Existing /etc/nixos found. Creating backup..."
+  BACKUP_DIR="/etc/nixos.backup.$(date +%Y%m%d-%H%M%S)"
+  mv /etc/nixos "$BACKUP_DIR"
+  echo "✓ Backed up to $BACKUP_DIR"
 fi
 
-if [ -d "/etc/nixos/.git" ]; then
-  echo "Config already exists, pulling latest..."
-  cd /etc/nixos
-  if ! retry_command git pull; then
-    echo "ERROR: Failed to pull latest configuration"
-    exit 1
-  fi
-else
-  # Backup existing config
-  if [ -d "/etc/nixos" ]; then
-    backup_dir="/etc/nixos.backup.$(date +%Y%m%d-%H%M%S)"
-    echo "Backing up existing config to $backup_dir..."
-    mv /etc/nixos "$backup_dir" || {
-      echo "ERROR: Failed to backup existing /etc/nixos"
-      exit 1
-    }
-  fi
-  
-  echo "Cloning configuration repository..."
-  if ! retry_command git clone "${REPO_URL}" /etc/nixos; then
-    echo "ERROR: Failed to clone configuration repository"
-    exit 1
-  fi
+# Ensure /etc/nixos exists and is empty
+mkdir -p /etc/nixos
+cd /etc/nixos
+
+echo "Cloning fresh configuration..."
+if ! retry_command git clone "$REPO_URL" .; then
+  echo "ERROR: Failed to clone configuration repository"
+  exit 1
 fi
 
-# Restore the real hardware-configuration.nix
-if [ -f "/tmp/hardware-configuration.nix.real" ]; then
-  echo "Restoring real hardware-configuration.nix..."
-  cp /tmp/hardware-configuration.nix.real /etc/nixos/hardware-configuration.nix || {
-    echo "ERROR: Failed to restore hardware-configuration.nix"
-    exit 1
-  }
-  rm /tmp/hardware-configuration.nix.real
-  echo "✓ Hardware configuration preserved"
+echo "✓ Repository cloned successfully"
+
+# Generate hardware-configuration.nix if it doesn't exist
+if [ ! -f "/etc/nixos/hardware-configuration.nix" ]; then
+  echo "Generating hardware-configuration.nix..."
+  nixos-generate-config --show-hardware-config > /etc/nixos/hardware-configuration.nix
+  echo "✓ Hardware configuration generated"
 else
-  echo "WARNING: No hardware-configuration.nix to restore!"
-  echo "If this is a fresh install, ensure hardware-configuration.nix exists"
+  echo "✓ Using existing hardware-configuration.nix"
   echo "Run: nixos-generate-config --show-hardware-config > /etc/nixos/hardware-configuration.nix"
   
   # Check if one exists now (might have been in repo)
