@@ -75,7 +75,7 @@ echo "Step 1: Installing temporary dependencies..."
 nix-shell -p azure-cli git --run bash <<'AZURE_LOGIN'
 set -euo pipefail
 
-echo 'Step 3: Authenticating with Azure...'
+echo 'Step 2: Authenticating with Azure...'
 echo 'You will need to:'
 echo '  1. Visit https://microsoft.com/devicelogin'
 echo '  2. Enter the code shown below'
