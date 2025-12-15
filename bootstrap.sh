@@ -72,6 +72,28 @@ fi
 
 echo "Step 1: Installing temporary dependencies..."
 nix-shell -p azure-cli git --run "
+  # Retry function for network operations (redefined in nix-shell)
+  retry_command() {
+    local max_attempts=3
+    local attempt=1
+    local delay=5
+    
+    while [ \$attempt -le \$max_attempts ]; do
+      if \"\$@\"; then
+        return 0
+      fi
+      
+      if [ \$attempt -lt \$max_attempts ]; then
+        echo \"Attempt \$attempt/\$max_attempts failed, retrying in \${delay}s...\"
+        sleep \$delay
+        delay=\$((delay * 2))
+      fi
+      attempt=\$((attempt + 1))
+    done
+    
+    echo \"ERROR: Command failed after \$max_attempts attempts: \$*\"
+    return 1
+  }
 
   echo 'Step 2: Authenticating with Azure...'
   echo 'Please login with your Microsoft account:'
