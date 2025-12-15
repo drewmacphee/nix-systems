@@ -234,8 +234,8 @@ rm -f /tmp/wifi-ssid /tmp/wifi-password
 echo ""
 echo "Step 6: Creating hostname configuration..."
 
-cd /etc/nixos/nix-kids-laptop || {
-  echo "ERROR: Cannot change to /etc/nixos/nix-kids-laptop directory"
+cd /etc/nixos || {
+  echo "ERROR: Cannot change to /etc/nixos directory"
   exit 1
 }
 
