@@ -204,9 +204,10 @@ echo ""
 echo "Step 3: Encrypting and storing secrets with systemd-creds..."
 
 encrypt_credential() {
-  local name="$1"
   local input="$2"
   local output="$3"
+  # systemd-creds requires the embedded name to match the filename when decrypting
+  local name=$(basename "$output")
 
   # Prefer TPM/hardware binding if available, but fall back to host key for reliability.
   if systemd-creds encrypt --with-key=auto --name="$name" "$input" "$output"; then
