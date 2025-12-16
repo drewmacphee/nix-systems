@@ -105,17 +105,24 @@ Done! OneDrive will sync on first login.
 
 1. Store rclone configs for each user (see [docs/ONEDRIVE-SETUP.md](docs/ONEDRIVE-SETUP.md)):
    ```bash
-   az keyvault secret set --vault-name nix-kids-laptop --name drew-rclone-config --file ~/.config/rclone/rclone.conf
-   az keyvault secret set --vault-name nix-kids-laptop --name emily-rclone-config --file ~/.config/rclone/rclone.conf
-   az keyvault secret set --vault-name nix-kids-laptop --name bella-rclone-config --file ~/.config/rclone/rclone.conf
+   az keyvault secret set --vault-name nix-systems-kv --name drew-rclone --file ~/.config/rclone/rclone.conf
+   az keyvault secret set --vault-name nix-systems-kv --name emily-rclone --file ~/.config/rclone/rclone.conf
+   az keyvault secret set --vault-name nix-systems-kv --name bella-rclone --file ~/.config/rclone/rclone.conf
    ```
 
 2. Store SSH authorized keys:
    ```bash
    cat ~/.ssh/id_ed25519.pub > /tmp/authorized_keys
-   az keyvault secret set --vault-name nix-kids-laptop --name drew-ssh-authorized-keys --file /tmp/authorized_keys
-   az keyvault secret set --vault-name nix-kids-laptop --name emily-ssh-authorized-keys --file /tmp/authorized_keys
-   az keyvault secret set --vault-name nix-kids-laptop --name bella-ssh-authorized-keys --file /tmp/authorized_keys
+   az keyvault secret set --vault-name nix-systems-kv --name drew-ssh-keys --file /tmp/authorized_keys
+   az keyvault secret set --vault-name nix-systems-kv --name emily-ssh-keys --file /tmp/authorized_keys
+   az keyvault secret set --vault-name nix-systems-kv --name bella-ssh-keys --file /tmp/authorized_keys
+   ```
+
+3. Store user passwords and WiFi credentials:
+   ```bash
+   az keyvault secret set --vault-name nix-systems-kv --name drew-password --value "SecurePassword123"
+   az keyvault secret set --vault-name nix-systems-kv --name wifi-ssid --value "1054"
+   az keyvault secret set --vault-name nix-systems-kv --name wifi-password --value "YourWiFiPassword"
    ```
 
 ### OneDrive Setup
@@ -135,20 +142,21 @@ Done! OneDrive will sync on first login.
 
 ### Secrets Management
 
-All secrets are stored in Azure Key Vault. No local encryption needed!
+**Hybrid approach for maximum security:**
+
+1. **Storage**: Azure Key Vault (`nix-systems-kv`) - source of truth
+2. **Bootstrap**: Fetches secrets during initial setup
+3. **Local**: Encrypted with `systemd-creds` (TPM/hardware-bound)
+4. **Runtime**: Decrypted on boot via systemd services
+5. **Security**: Never in git, survives reboots, cleared on reinstall
 
 **Required secrets in Key Vault:**
-- `drew-rclone-config` - Drew's OneDrive configuration
-- `emily-rclone-config` - Emily's OneDrive configuration
-- `bella-rclone-config` - Bella's OneDrive configuration
-- `drew-ssh-authorized-keys` - SSH keys for Drew
-- `emily-ssh-authorized-keys` - SSH keys for Emily
-- `bella-ssh-authorized-keys` - SSH keys for Bella
-- `drew-password` - Drew's login password
-- `emily-password` - Emily's login password
-- `bella-password` - Bella's login password
+- `drew-rclone`, `emily-rclone`, `bella-rclone` - OneDrive configurations
+- `drew-ssh-keys`, `emily-ssh-keys`, `bella-ssh-keys` - SSH authorized keys
+- `drew-password`, `emily-password`, `bella-password` - User passwords
+- `wifi-ssid`, `wifi-password` - WiFi credentials
 
-See [docs/SETUP-SIMPLIFIED.md](docs/SETUP-SIMPLIFIED.md) for detailed setup instructions.
+See [docs/KEYVAULT-SETUP-GUIDE.md](docs/KEYVAULT-SETUP-GUIDE.md) for setup instructions.
 
 ## Repository Structure
 
