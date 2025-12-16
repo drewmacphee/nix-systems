@@ -228,6 +228,11 @@ if [ -d "$HOST_SECRET_FILE" ]; then
 fi
 
 echo "Ensuring systemd credential host secret exists..."
+if [ -f "$HOST_SECRET_FILE" ]; then
+  # systemd-creds refuses to use an existing host secret if permissions are too permissive.
+  chown root:root "$HOST_SECRET_FILE"
+  chmod 0400 "$HOST_SECRET_FILE"
+fi
 if ! systemd-creds setup; then
   echo "ERROR: systemd-creds setup failed; cannot initialize host credential secret."
   exit 1

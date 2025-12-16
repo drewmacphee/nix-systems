@@ -208,7 +208,7 @@ If you update a secret in Azure Key Vault:
 
 ```bash
 # Fetch new secret
-az keyvault secret show --vault-name nix-systems-kv --name drew-rclone --query value -o tsv > /tmp/new-secret
+az keyvault secret show --vault-name nix-kids-laptop --name drew-rclone-config --query value -o tsv > /tmp/new-secret
 
 # Re-encrypt
 sudo systemd-creds encrypt --name=drew-rclone /tmp/new-secret /etc/credstore.encrypted/drew-rclone.cred
