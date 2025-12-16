@@ -92,6 +92,7 @@ Done! OneDrive will sync on first login.
 ## Documentation
 
 - **[docs/SETUP-SIMPLIFIED.md](docs/SETUP-SIMPLIFIED.md)** - Complete setup walkthrough
+- **[docs/SECRETS-SYSTEMD-CREDS.md](docs/SECRETS-SYSTEMD-CREDS.md)** - Secrets management architecture
 - **[docs/KEYVAULT-SETUP-GUIDE.md](docs/KEYVAULT-SETUP-GUIDE.md)** - Azure Key Vault configuration
 - **[docs/ONEDRIVE-SETUP.md](docs/ONEDRIVE-SETUP.md)** - OneDrive integration guide
 - **[docs/MINECRAFT-SETUP-GUIDE.md](docs/MINECRAFT-SETUP-GUIDE.md)** - Minecraft/PrismLauncher config
