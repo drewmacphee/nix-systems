@@ -209,9 +209,14 @@ systemd-creds encrypt --name=emily-rclone /tmp/emily-rclone.conf "$CREDS_DIR/emi
 systemd-creds encrypt --name=bella-rclone /tmp/bella-rclone.conf "$CREDS_DIR/bella-rclone.cred" || exit 1
 
 echo "Encrypting SSH keys..."
-systemd-creds encrypt --name=drew-ssh-keys /tmp/drew-ssh-keys "$CREDS_DIR/drew-ssh-keys.cred" || exit 1
-systemd-creds encrypt --name=emily-ssh-keys /tmp/emily-ssh-keys "$CREDS_DIR/emily-ssh-keys.cred" || exit 1
-systemd-creds encrypt --name=bella-ssh-keys /tmp/bella-ssh-keys "$CREDS_DIR/bella-ssh-keys.cred" || exit 1
+# Create tarballs of SSH keys before encrypting
+tar -czf /tmp/drew-ssh-keys.tar.gz -C /tmp/drew-ssh-keys .
+tar -czf /tmp/emily-ssh-keys.tar.gz -C /tmp/emily-ssh-keys .
+tar -czf /tmp/bella-ssh-keys.tar.gz -C /tmp/bella-ssh-keys .
+
+systemd-creds encrypt --name=drew-ssh-keys /tmp/drew-ssh-keys.tar.gz "$CREDS_DIR/drew-ssh-keys.cred" || exit 1
+systemd-creds encrypt --name=emily-ssh-keys /tmp/emily-ssh-keys.tar.gz "$CREDS_DIR/emily-ssh-keys.cred" || exit 1
+systemd-creds encrypt --name=bella-ssh-keys /tmp/bella-ssh-keys.tar.gz "$CREDS_DIR/bella-ssh-keys.cred" || exit 1
 
 echo "Encrypting user passwords..."
 systemd-creds encrypt --name=drew-password /tmp/drew-password "$CREDS_DIR/drew-password.cred" || exit 1

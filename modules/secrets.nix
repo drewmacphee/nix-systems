@@ -45,26 +45,59 @@ in
       destination = "/home/bella/.config/rclone/rclone.conf";
     };
     
-    # SSH authorized keys
-    "decrypt-drew-ssh" = mkCredentialService {
-      name = "drew-ssh-keys";
-      user = "drew";
-      destination = "/home/drew/.ssh/authorized_keys";
-      mode = "0644";
+    # SSH authorized keys (stored as tarballs)
+    "decrypt-drew-ssh" = {
+      description = "Decrypt drew SSH keys";
+      wantedBy = [ "multi-user.target" ];
+      after = [ "local-fs.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = pkgs.writeShellScript "decrypt-drew-ssh" ''
+          mkdir -p /home/drew/.ssh
+          ${pkgs.systemd}/bin/systemd-creds decrypt \
+            ${credsDir}/drew-ssh-keys.cred - | ${pkgs.gnutar}/bin/tar -xzf - -C /home/drew/.ssh
+          chown -R drew:users /home/drew/.ssh
+          chmod 700 /home/drew/.ssh
+          chmod 600 /home/drew/.ssh/*
+        '';
+      };
     };
     
-    "decrypt-emily-ssh" = mkCredentialService {
-      name = "emily-ssh-keys";
-      user = "emily";
-      destination = "/home/emily/.ssh/authorized_keys";
-      mode = "0644";
+    "decrypt-emily-ssh" = {
+      description = "Decrypt emily SSH keys";
+      wantedBy = [ "multi-user.target" ];
+      after = [ "local-fs.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = pkgs.writeShellScript "decrypt-emily-ssh" ''
+          mkdir -p /home/emily/.ssh
+          ${pkgs.systemd}/bin/systemd-creds decrypt \
+            ${credsDir}/emily-ssh-keys.cred - | ${pkgs.gnutar}/bin/tar -xzf - -C /home/emily/.ssh
+          chown -R emily:users /home/emily/.ssh
+          chmod 700 /home/emily/.ssh
+          chmod 600 /home/emily/.ssh/*
+        '';
+      };
     };
     
-    "decrypt-bella-ssh" = mkCredentialService {
-      name = "bella-ssh-keys";
-      user = "bella";
-      destination = "/home/bella/.ssh/authorized_keys";
-      mode = "0644";
+    "decrypt-bella-ssh" = {
+      description = "Decrypt bella SSH keys";
+      wantedBy = [ "multi-user.target" ];
+      after = [ "local-fs.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = pkgs.writeShellScript "decrypt-bella-ssh" ''
+          mkdir -p /home/bella/.ssh
+          ${pkgs.systemd}/bin/systemd-creds decrypt \
+            ${credsDir}/bella-ssh-keys.cred - | ${pkgs.gnutar}/bin/tar -xzf - -C /home/bella/.ssh
+          chown -R bella:users /home/bella/.ssh
+          chmod 700 /home/bella/.ssh
+          chmod 600 /home/bella/.ssh/*
+        '';
+      };
     };
   };
   
