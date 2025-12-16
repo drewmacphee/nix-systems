@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # NixOS Kids Laptop Bootstrap Script
-# Usage: curl -L https://raw.githubusercontent.com/drewmacphee/nix-kids-laptop/main/bootstrap.sh | sudo bash
+# Usage: curl -L https://raw.githubusercontent.com/drewmacphee/nix-systems/main/bootstrap.sh | sudo bash
 
 set -euo pipefail
 
 REPO_URL="https://github.com/drewmacphee/nix-systems"
 VAULT_NAME="nix-systems-kv"
 TENANT_ID="6e2722da-5af4-4c0f-878a-42db4d068c86"
-CREDS_DIR="/var/lib/systemd/credential.secret"
+
+# Where encrypted *.cred files are stored (systemd "credstore")
+CREDS_DIR="/etc/credstore.encrypted"
+
+# Host secret used by systemd-creds when encrypting/decrypting with the default "host" key
+HOST_SECRET_FILE="/var/lib/systemd/credential.secret"
 
 # Error handler
 trap 'echo "ERROR: Bootstrap failed at line $LINENO. Check output above for details." >&2; exit 1' ERR
@@ -198,6 +203,25 @@ fi
 echo ""
 echo "Step 3: Encrypting and storing secrets with systemd-creds..."
 
+# Ensure the host secret is a file (a previous buggy run may have created it as a directory)
+if [ -d "$HOST_SECRET_FILE" ]; then
+  if [ -z "$(ls -A "$HOST_SECRET_FILE" 2>/dev/null || true)" ]; then
+    rmdir "$HOST_SECRET_FILE"
+  else
+    echo "ERROR: $HOST_SECRET_FILE is a directory (not empty); cannot continue."
+    echo "Fix by moving it aside, then re-run the bootstrap."
+    exit 1
+  fi
+fi
+
+if [ ! -f "$HOST_SECRET_FILE" ]; then
+  echo "Creating systemd credential host secret at $HOST_SECRET_FILE..."
+  install -d -m 0755 "$(dirname "$HOST_SECRET_FILE")"
+  umask 077
+  head -c 32 /dev/urandom > "$HOST_SECRET_FILE"
+  chmod 600 "$HOST_SECRET_FILE"
+fi
+
 # Ensure credential directory exists
 mkdir -p "$CREDS_DIR"
 chmod 700 "$CREDS_DIR"
@@ -209,14 +233,9 @@ systemd-creds encrypt --name=emily-rclone /tmp/emily-rclone.conf "$CREDS_DIR/emi
 systemd-creds encrypt --name=bella-rclone /tmp/bella-rclone.conf "$CREDS_DIR/bella-rclone.cred" || exit 1
 
 echo "Encrypting SSH keys..."
-# Create tarballs of SSH keys before encrypting
-tar -czf /tmp/drew-ssh-keys.tar.gz -C /tmp/drew-ssh-keys .
-tar -czf /tmp/emily-ssh-keys.tar.gz -C /tmp/emily-ssh-keys .
-tar -czf /tmp/bella-ssh-keys.tar.gz -C /tmp/bella-ssh-keys .
-
-systemd-creds encrypt --name=drew-ssh-keys /tmp/drew-ssh-keys.tar.gz "$CREDS_DIR/drew-ssh-keys.cred" || exit 1
-systemd-creds encrypt --name=emily-ssh-keys /tmp/emily-ssh-keys.tar.gz "$CREDS_DIR/emily-ssh-keys.cred" || exit 1
-systemd-creds encrypt --name=bella-ssh-keys /tmp/bella-ssh-keys.tar.gz "$CREDS_DIR/bella-ssh-keys.cred" || exit 1
+systemd-creds encrypt --name=drew-ssh-authorized-keys /tmp/drew-ssh-keys "$CREDS_DIR/drew-ssh-authorized-keys.cred" || exit 1
+systemd-creds encrypt --name=emily-ssh-authorized-keys /tmp/emily-ssh-keys "$CREDS_DIR/emily-ssh-authorized-keys.cred" || exit 1
+systemd-creds encrypt --name=bella-ssh-authorized-keys /tmp/bella-ssh-keys "$CREDS_DIR/bella-ssh-authorized-keys.cred" || exit 1
 
 echo "Encrypting user passwords..."
 systemd-creds encrypt --name=drew-password /tmp/drew-password "$CREDS_DIR/drew-password.cred" || exit 1

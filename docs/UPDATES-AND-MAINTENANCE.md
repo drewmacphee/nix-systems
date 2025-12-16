@@ -24,7 +24,7 @@ system.autoUpgrade = {
   enable = true;
   allowReboot = false;  # Never interrupts usage
   dates = "03:00";      # Runs at 3am daily
-  flake = "github:drewmacphee/nix-kids-laptop";
+  flake = "github:drewmacphee/nix-systems";
 };
 ```
 

@@ -3,7 +3,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  credsDir = "/var/lib/systemd/credential.secret";
+  credsDir = "/etc/credstore.encrypted";
   
   # Helper to create a systemd service that decrypts a credential
   mkCredentialService = { name, user, destination, mode ? "0600" }: {
@@ -45,7 +45,7 @@ in
       destination = "/home/bella/.config/rclone/rclone.conf";
     };
     
-    # SSH authorized keys (stored as tarballs)
+    # SSH authorized keys
     "decrypt-drew-ssh" = {
       description = "Decrypt drew SSH keys";
       wantedBy = [ "multi-user.target" ];
@@ -54,12 +54,11 @@ in
         Type = "oneshot";
         RemainAfterExit = true;
         ExecStart = pkgs.writeShellScript "decrypt-drew-ssh" ''
-          mkdir -p /home/drew/.ssh
+          install -d -m 0700 -o drew -g users /home/drew/.ssh
           ${pkgs.systemd}/bin/systemd-creds decrypt \
-            ${credsDir}/drew-ssh-keys.cred - | ${pkgs.gnutar}/bin/tar -xzf - -C /home/drew/.ssh
-          chown -R drew:users /home/drew/.ssh
-          chmod 700 /home/drew/.ssh
-          chmod 600 /home/drew/.ssh/*
+            ${credsDir}/drew-ssh-authorized-keys.cred - > /home/drew/.ssh/authorized_keys
+          chown drew:users /home/drew/.ssh/authorized_keys
+          chmod 600 /home/drew/.ssh/authorized_keys
         '';
       };
     };
@@ -72,12 +71,11 @@ in
         Type = "oneshot";
         RemainAfterExit = true;
         ExecStart = pkgs.writeShellScript "decrypt-emily-ssh" ''
-          mkdir -p /home/emily/.ssh
+          install -d -m 0700 -o emily -g users /home/emily/.ssh
           ${pkgs.systemd}/bin/systemd-creds decrypt \
-            ${credsDir}/emily-ssh-keys.cred - | ${pkgs.gnutar}/bin/tar -xzf - -C /home/emily/.ssh
-          chown -R emily:users /home/emily/.ssh
-          chmod 700 /home/emily/.ssh
-          chmod 600 /home/emily/.ssh/*
+            ${credsDir}/emily-ssh-authorized-keys.cred - > /home/emily/.ssh/authorized_keys
+          chown emily:users /home/emily/.ssh/authorized_keys
+          chmod 600 /home/emily/.ssh/authorized_keys
         '';
       };
     };
@@ -90,12 +88,11 @@ in
         Type = "oneshot";
         RemainAfterExit = true;
         ExecStart = pkgs.writeShellScript "decrypt-bella-ssh" ''
-          mkdir -p /home/bella/.ssh
+          install -d -m 0700 -o bella -g users /home/bella/.ssh
           ${pkgs.systemd}/bin/systemd-creds decrypt \
-            ${credsDir}/bella-ssh-keys.cred - | ${pkgs.gnutar}/bin/tar -xzf - -C /home/bella/.ssh
-          chown -R bella:users /home/bella/.ssh
-          chmod 700 /home/bella/.ssh
-          chmod 600 /home/bella/.ssh/*
+            ${credsDir}/bella-ssh-authorized-keys.cred - > /home/bella/.ssh/authorized_keys
+          chown bella:users /home/bella/.ssh/authorized_keys
+          chmod 600 /home/bella/.ssh/authorized_keys
         '';
       };
     };

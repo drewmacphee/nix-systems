@@ -105,7 +105,7 @@ Update `configuration.nix` if needed:
 ## Step 6: Push to GitHub
 
 ```bash
-cd /path/to/nix-kids-laptop
+cd /path/to/nix-systems
 
 # Initialize git if not already done
 git init
@@ -113,10 +113,10 @@ git add .
 git commit -m "Initial NixOS kids laptop configuration"
 
 # Create repo and push
-gh repo create nix-kids-laptop --public --source=. --remote=origin --push
+gh repo create nix-systems --public --source=. --remote=origin --push
 
 # Or manually:
-git remote add origin https://github.com/drewmacphee/nix-kids-laptop.git
+git remote add origin https://github.com/drewmacphee/nix-systems.git
 git branch -M main
 git push -u origin main
 ```
@@ -126,7 +126,7 @@ git push -u origin main
 Before using on the actual laptop, verify the script is accessible:
 
 ```bash
-curl -L https://raw.githubusercontent.com/drewmacphee/nix-kids-laptop/main/bootstrap.sh
+curl -L https://raw.githubusercontent.com/drewmacphee/nix-systems/main/bootstrap.sh
 ```
 
 ## Ready to Install!
@@ -134,7 +134,7 @@ curl -L https://raw.githubusercontent.com/drewmacphee/nix-kids-laptop/main/boots
 Now on a freshly installed NixOS system, just run:
 
 ```bash
-curl -L https://raw.githubusercontent.com/drewmacphee/nix-kids-laptop/main/bootstrap.sh | sudo bash
+curl -L https://raw.githubusercontent.com/drewmacphee/nix-systems/main/bootstrap.sh | sudo bash
 ```
 
 That's it! The script will:
