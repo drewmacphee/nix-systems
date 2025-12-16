@@ -292,12 +292,12 @@ cp -r /tmp/nixos-secrets/* /etc/nixos/secrets/ || {
 echo "Building NixOS configuration..."
 echo "This may take 10-30 minutes depending on internet speed..."
 
-if ! nixos-rebuild switch --flake ".#$HOSTNAME"; then
+if ! sudo nixos-rebuild switch --flake .#kids-laptop; then
   echo ""
   echo "ERROR: nixos-rebuild failed!"
   echo "Check the error messages above for details."
   echo "Secrets are preserved in /tmp/nixos-secrets and /tmp/nixos-passwords"
-  echo "You can retry with: cd /etc/nixos && nixos-rebuild switch --flake '.#$HOSTNAME'"
+  echo "You can retry with: cd /etc/nixos && sudo nixos-rebuild switch --flake .#kids-laptop"
   exit 1
 fi
 
