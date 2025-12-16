@@ -23,13 +23,13 @@ in
       MIN_RAM_MB=$((TOTAL_RAM_MB / 4))
       
       # Ensure reasonable limits (min 2GB, max 16GB for safety)
-      if [ $MAX_RAM_MB -lt 2048 ]; then
+      if [ "$MAX_RAM_MB" -lt 2048 ]; then
         MAX_RAM_MB=2048
       fi
-      if [ $MAX_RAM_MB -gt 16384 ]; then
+      if [ "$MAX_RAM_MB" -gt 16384 ]; then
         MAX_RAM_MB=16384
       fi
-      if [ $MIN_RAM_MB -lt 1024 ]; then
+      if [ "$MIN_RAM_MB" -lt 1024 ]; then
         MIN_RAM_MB=1024
       fi
       
