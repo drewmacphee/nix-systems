@@ -18,14 +18,14 @@
         system = "x86_64-linux";
         specialArgs = { inherit inputs; };
         modules = [
-          ./hosts/${hostname}
+          ./hosts/${hostname}/configuration.nix
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            home-manager.users.drew = import ./home-drew.nix;
-            home-manager.users.emily = import ./home-emily.nix;
-            home-manager.users.bella = import ./home-bella.nix;
+            home-manager.users.drew = import ./home/drew.nix;
+            home-manager.users.emily = import ./home/emily.nix;
+            home-manager.users.bella = import ./home/bella.nix;
           }
         ];
       };
