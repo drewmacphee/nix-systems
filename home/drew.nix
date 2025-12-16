@@ -2,12 +2,12 @@
 
 {
   imports = [
-    ./modules/common.nix
-    ./modules/onedrive.nix
-    ./modules/minecraft.nix
-    ./modules/login-reminders.nix
-    ./modules/packages/base.nix
-    ./modules/packages/dev.nix
+    ../modules/common.nix
+    ../modules/onedrive.nix
+    ../modules/minecraft.nix
+    ../modules/login-reminders.nix
+    ../modules/packages/base.nix
+    ../modules/packages/dev.nix
   ];
 
   # User identity
