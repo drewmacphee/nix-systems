@@ -14,7 +14,8 @@ A fully portable NixOS configuration for multiple machines with remote administr
 
 ## Multi-Machine Structure
 
-- `hosts/common/` - Shared configuration for all machines
+- `modules/` - Shared configuration for all machines
+- `home/` - User-specific home-manager configurations
 - `hosts/bazztop/` - Configuration for the bazztop laptop
 - `hosts/*/hardware-configuration.nix` - Machine-specific hardware (auto-generated)
 
@@ -55,16 +56,28 @@ Done! OneDrive will sync on first login.
 
 ## Adding a New Machine
 
-1. Create `hosts/newmachine/default.nix`:
+1. Create `hosts/newmachine/configuration.nix`:
    ```nix
    { config, pkgs, ... }:
    {
-     imports = [ ./hardware-configuration.nix ../common ];
+     imports = [ 
+       ./hardware-configuration.nix 
+       ../../modules/common.nix
+     ];
+     
      networking.hostName = "newmachine";
    }
    ```
 
-2. Add placeholder `hosts/newmachine/hardware-configuration.nix`
+2. Add placeholder `hosts/newmachine/hardware-configuration.nix`:
+   ```nix
+   { config, lib, pkgs, modulesPath, ... }:
+   {
+     imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
+     boot.loader.grub.enable = true;
+     boot.loader.grub.device = "/dev/sda";
+   }
+   ```
 
 3. Update `flake.nix`:
    ```nix
@@ -144,18 +157,18 @@ See [docs/SETUP-SIMPLIFIED.md](docs/SETUP-SIMPLIFIED.md) for detailed setup inst
 ├── bootstrap.sh                    # One-shot install script
 ├── flake.nix                       # Nix flake definition
 ├── flake.lock                      # Pinned dependencies
-├── configuration.nix               # System configuration
-├── home-drew.nix                   # Drew's home-manager config (28 lines!)
-├── home-emily.nix                  # Emily's home-manager config (27 lines!)
-├── home-bella.nix                  # Bella's home-manager config (27 lines!)
-├── hardware-configuration.nix.template  # Template (replaced at bootstrap)
+├── hosts/                          # Machine-specific configs
+│   └── bazztop/
+│       ├── configuration.nix       # Host config (networking, etc)
+│       └── hardware-configuration.nix  # Auto-generated hardware config
 ├── modules/                        # Shared configuration modules
-│   ├── common.nix                  # Git, Bash, home-manager
-│   ├── onedrive.nix                # OneDrive service
-│   ├── minecraft.nix               # Minecraft setup
-│   └── packages/
-│       ├── base.nix                # Common apps
-│       └── dev.nix                 # Dev tools
+│   ├── common.nix                  # System-wide settings (users, packages)
+│   ├── home-manager.nix            # Home-manager integration
+│   └── minecraft.nix               # Minecraft/PrismLauncher setup
+├── home/                           # User home-manager configs
+│   ├── drew.nix                    # Drew's config
+│   ├── emily.nix                   # Emily's config
+│   └── bella.nix                   # Bella's config
 ├── docs/                           # Documentation
 │   ├── SETUP-SIMPLIFIED.md
 │   ├── KEYVAULT-SETUP-GUIDE.md
@@ -185,21 +198,21 @@ Once installed, connect via VS Code Remote SSH:
 
 From remote machine:
 ```bash
-ssh drew@nix-kids-laptop
+ssh drew@bazztop
 cd /etc/nixos
 git pull
-sudo nixos-rebuild switch --flake .#nix-kids-laptop
+sudo nixos-rebuild switch --flake .#bazztop
 ```
 
 Automatic updates are configured to run daily at 3 AM. See [docs/UPDATES-AND-MAINTENANCE.md](docs/UPDATES-AND-MAINTENANCE.md) for details.
 
 ## Customization
 
-- **Add packages**: Edit `modules/packages/base.nix` or `configuration.nix`
-- **Change desktop environment**: Modify `services.xserver` in `configuration.nix`
+- **Add packages**: Edit `modules/common.nix`
+- **Change desktop environment**: Modify `services.desktopManager.plasma6.enable` in `modules/common.nix`
 - **Add secrets**: Store in Azure Key Vault, fetch in `bootstrap.sh`
-- **Timezone**: Auto-detected via geoclue2 (configured in `configuration.nix`)
-- **Add user**: Create new `home-username.nix` (28 lines - see existing as template)
+- **Timezone**: Auto-detected via geoclue2 (configured in `modules/common.nix`)
+- **Add user**: Create new `home/username.nix` (see existing as template)
 
 ## Troubleshooting
 
