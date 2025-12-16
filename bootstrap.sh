@@ -137,7 +137,8 @@ AZURE_LOGIN
 echo ""
 echo "Step 2: Cloning configuration repository..."
 
-# Clean slate approach - backup existing config
+# Clean slate approach - backup existing config and preserve hardware-configuration.nix
+BACKUP_DIR=""
 if [ -d "/etc/nixos" ] && [ "$(ls -A /etc/nixos)" ]; then
   echo "Existing /etc/nixos found. Creating backup..."
   BACKUP_DIR="/etc/nixos.backup.$(date +%Y%m%d-%H%M%S)"
@@ -157,21 +158,15 @@ fi
 
 echo "✓ Repository cloned successfully"
 
-# Generate hardware-configuration.nix if it doesn't exist
-if [ ! -f "/etc/nixos/hardware-configuration.nix" ]; then
-  echo "Generating hardware-configuration.nix..."
+# Restore hardware-configuration.nix from backup or generate new one
+if [ -n "$BACKUP_DIR" ] && [ -f "$BACKUP_DIR/hardware-configuration.nix" ]; then
+  echo "Restoring hardware-configuration.nix from backup..."
+  cp "$BACKUP_DIR/hardware-configuration.nix" /etc/nixos/hardware-configuration.nix
+  echo "✓ Hardware configuration restored from backup"
+else
+  echo "Generating new hardware-configuration.nix..."
   nixos-generate-config --show-hardware-config > /etc/nixos/hardware-configuration.nix
   echo "✓ Hardware configuration generated"
-else
-  echo "✓ Using existing hardware-configuration.nix"
-  echo "Run: nixos-generate-config --show-hardware-config > /etc/nixos/hardware-configuration.nix"
-  
-  # Check if one exists now (might have been in repo)
-  if [ ! -f "/etc/nixos/hardware-configuration.nix" ]; then
-    echo "ERROR: No hardware-configuration.nix found. Cannot proceed."
-    echo "Generate it with: nixos-generate-config"
-    exit 1
-  fi
 fi
 
 echo ""
@@ -275,20 +270,13 @@ EOF
 fi
 
 echo ""
-echo "Step 5: Preserving hardware configuration..."
-# The existing /etc/nixos/hardware-configuration.nix should already be there from the original NixOS install
-# We just need to make sure our cloned repo doesn't overwrite it
+echo "Step 5: Verifying hardware configuration..."
+# This should have been restored/generated in Step 2
 if [ ! -f hardware-configuration.nix ]; then
-  echo "WARNING: No hardware-configuration.nix found in /etc/nixos!"
-  echo "Generating a new one..."
-  nixos-generate-config --show-hardware-config > hardware-configuration.nix || {
-    echo "ERROR: Failed to generate hardware configuration"
-    exit 1
-  }
-  echo "✓ Hardware configuration generated"
-else
-  echo "✓ Using existing hardware-configuration.nix from NixOS installation"
+  echo "ERROR: No hardware-configuration.nix found!"
+  exit 1
 fi
+echo "✓ Hardware configuration ready"
 
 echo ""
 echo "Step 6: Applying NixOS configuration..."
