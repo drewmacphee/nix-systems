@@ -118,23 +118,31 @@ nix-shell -p azure-cli git --run bash <<'AZURE_LOGIN'
 set -euo pipefail
 
 echo 'Step 2: Authenticating with Azure...'
-echo 'You will need to:'
-echo '  1. Visit https://microsoft.com/devicelogin'
-echo '  2. Enter the code shown below'
-echo '  3. Complete MFA authentication'
-echo ''
 
-# Use device code flow - more reliable and works with MFA
-if ! az login --tenant 6e2722da-5af4-4c0f-878a-42db4d068c86 --use-device-code --allow-no-subscriptions; then
-  echo ''
-  echo 'ERROR: Azure login failed. Please ensure:'
-  echo '  - You completed the device code authentication'
-  echo '  - You can complete MFA authentication'
-  echo '  - You have access to tenant 6e2722da-5af4-4c0f-878a-42db4d068c86'
-  exit 1
+TENANT_ID="6e2722da-5af4-4c0f-878a-42db4d068c86"
+
+# Check if already logged in with correct tenant
+if az account show --query "tenantId" -o tsv 2>/dev/null | grep -q "$TENANT_ID"; then
+    echo "✓ Already authenticated with Azure (tenant: $TENANT_ID)"
+else
+    echo 'You will need to:'
+    echo '  1. Visit https://microsoft.com/devicelogin'
+    echo '  2. Enter the code shown below'
+    echo '  3. Complete MFA authentication'
+    echo ''
+
+    # Use device code flow - more reliable and works with MFA
+    if ! az login --tenant "$TENANT_ID" --use-device-code --allow-no-subscriptions; then
+      echo ''
+      echo 'ERROR: Azure login failed. Please ensure:'
+      echo '  - You completed the device code authentication'
+      echo '  - You can complete MFA authentication'
+      echo "  - You have access to tenant $TENANT_ID"
+      exit 1
+    fi
+
+    echo "✓ Azure login successful"
 fi
-
-echo "✓ Azure login successful"
   
 echo ''
 echo 'Step 4: Fetching secrets from Azure Key Vault...'
