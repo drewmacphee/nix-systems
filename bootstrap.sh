@@ -432,7 +432,22 @@ else
 fi
 
 echo ""
-echo "Step 5: Applying NixOS configuration..."
+echo "Step 5: Preparing for home-manager..."
+# Move aside any existing user dotfiles that might conflict
+for user in drew emily bella; do
+  user_home="/home/$user"
+  if [ -d "$user_home" ]; then
+    echo "Backing up existing dotfiles for $user..."
+    for file in .bashrc .bash_profile .profile .config/fontconfig .config/gtk-3.0 .gtkrc-2.0; do
+      if [ -e "$user_home/$file" ] && [ ! -L "$user_home/$file" ]; then
+        sudo mv "$user_home/$file" "$user_home/${file}.pre-nixos-backup" 2>/dev/null || true
+      fi
+    done
+  fi
+done
+
+echo ""
+echo "Step 6: Applying NixOS configuration..."
 echo "This will take several minutes (downloading packages)..."
 
 echo "Building NixOS configuration..."
@@ -463,7 +478,7 @@ fi
 echo "✓ NixOS configuration applied successfully"
 
 echo ""
-echo "Step 6: Setting user passwords..."
+echo "Step 7: Setting user passwords..."
 
 # Verify users were created
 for user in drew emily bella; do
