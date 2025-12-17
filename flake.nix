@@ -25,7 +25,9 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            home-manager.backupFileExtension = "backup";
+            home-manager.backupFileExtension = "hm-backup";
+            # Allow home-manager to overwrite existing files
+            home-manager.extraSpecialArgs = { inherit inputs; };
             home-manager.users.drew = import ./home/drew.nix;
             home-manager.users.emily = import ./home/emily.nix;
             home-manager.users.bella = import ./home/bella.nix;
