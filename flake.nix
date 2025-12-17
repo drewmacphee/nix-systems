@@ -25,6 +25,7 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
+            home-manager.backupFileExtension = "backup";
             home-manager.users.drew = import ./home/drew.nix;
             home-manager.users.emily = import ./home/emily.nix;
             home-manager.users.bella = import ./home/bella.nix;
