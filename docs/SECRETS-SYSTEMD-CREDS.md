@@ -32,8 +32,9 @@ When you run the bootstrap script:
    - WiFi credentials
 3. **Encrypt Locally**: Each secret is encrypted using `systemd-creds encrypt`:
    - Binds to TPM 2.0 chip (if available) or system-specific key
-   - Stored in `/var/lib/systemd/credential.secret/*.cred`
+  - Stored in `/etc/credstore.encrypted/*.cred`
    - Cannot be decrypted on different hardware
+  - Uses the host secret at `/var/lib/systemd/credential.secret` (created via `systemd-creds setup`)
 4. **Cleanup**: Original plaintext secrets are securely deleted with `shred`
 
 ### 2. Boot Phase (Every restart)
@@ -120,9 +121,9 @@ systemd.services."decrypt-drew-ssh" = {
   serviceConfig = {
     Type = "oneshot";
     ExecStart = ''
-      systemd-creds decrypt /var/lib/systemd/credential.secret/drew-ssh-keys.cred \
+      systemd-creds decrypt /etc/credstore.encrypted/drew-ssh-authorized-keys.cred \
         > /home/drew/.ssh/authorized_keys
-      chmod 644 /home/drew/.ssh/authorized_keys
+      chmod 600 /home/drew/.ssh/authorized_keys
       chown drew:users /home/drew/.ssh/authorized_keys
     '';
   };
@@ -138,7 +139,7 @@ systemd.services."decrypt-drew-rclone" = {
   serviceConfig = {
     Type = "oneshot";
     ExecStart = ''
-      systemd-creds decrypt /var/lib/systemd/credential.secret/drew-rclone.cred \
+      systemd-creds decrypt /etc/credstore.encrypted/drew-rclone.cred \
         > /home/drew/.config/rclone/rclone.conf
       chmod 600 /home/drew/.config/rclone/rclone.conf
       chown drew:users /home/drew/.config/rclone/rclone.conf
@@ -185,13 +186,20 @@ echo "drew:$DREW_PASS" | chpasswd
 ### View Encrypted Credential
 
 ```bash
-sudo ls -lh /var/lib/systemd/credential.secret/
+sudo ls -lh /etc/credstore.encrypted
+```
+
+### Ensure Host Credential Secret Exists
+
+```bash
+sudo systemd-creds setup
+sudo ls -lh /var/lib/systemd/credential.secret
 ```
 
 ### Decrypt Credential Manually
 
 ```bash
-sudo systemd-creds decrypt /var/lib/systemd/credential.secret/drew-rclone.cred -
+sudo systemd-creds decrypt /etc/credstore.encrypted/drew-rclone.cred -
 ```
 
 ### Re-encrypt After Update
@@ -200,10 +208,10 @@ If you update a secret in Azure Key Vault:
 
 ```bash
 # Fetch new secret
-az keyvault secret show --vault-name nix-systems-kv --name drew-rclone --query value -o tsv > /tmp/new-secret
+az keyvault secret show --vault-name nix-kids-laptop --name drew-rclone-config --query value -o tsv > /tmp/new-secret
 
 # Re-encrypt
-sudo systemd-creds encrypt --name=drew-rclone /tmp/new-secret /var/lib/systemd/credential.secret/drew-rclone.cred
+sudo systemd-creds encrypt --name=drew-rclone /tmp/new-secret /etc/credstore.encrypted/drew-rclone.cred
 
 # Cleanup
 shred -u /tmp/new-secret
@@ -215,7 +223,7 @@ sudo systemctl restart decrypt-drew-rclone
 ### Remove All Credentials (Fresh Start)
 
 ```bash
-sudo rm -rf /var/lib/systemd/credential.secret/*.cred
+sudo rm -rf /etc/credstore.encrypted/*.cred
 # Re-run bootstrap to fetch fresh from Azure
 ```
 
@@ -247,7 +255,7 @@ sudo journalctl -u decrypt-drew-rclone
 
 **Verify credential exists**:
 ```bash
-sudo ls -l /var/lib/systemd/credential.secret/drew-rclone.cred
+sudo ls -l /etc/credstore.encrypted/drew-rclone.cred
 ```
 
 ### Permission denied errors

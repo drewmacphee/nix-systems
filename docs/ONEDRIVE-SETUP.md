@@ -40,13 +40,11 @@ rclone config
 ### Step 2: Save Drew's Config
 
 ```bash
-# Export the config
-cat ~/.config/rclone/rclone.conf > /tmp/drew-rclone.conf
-
-# Encrypt it with agenix
-agenix -e secrets/drew-rclone-config.age
-# Paste the contents of /tmp/drew-rclone.conf
-# Save and exit
+# Upload the config to Azure Key Vault
+az keyvault secret set \
+	--vault-name nix-kids-laptop \
+	--name drew-rclone-config \
+	--file ~/.config/rclone/rclone.conf
 ```
 
 ### Step 3: Configure rclone for Emily
@@ -61,10 +59,11 @@ rclone config
 # Follow same prompts as Drew, but:
 # Login with: emilykamacphee@outlook.com
 
-# Export and encrypt
-cat ~/.config/rclone/rclone.conf > /tmp/emily-rclone.conf
-agenix -e secrets/emily-rclone-config.age
-# Paste contents, save and exit
+# Upload the config to Azure Key Vault
+az keyvault secret set \
+	--vault-name nix-kids-laptop \
+	--name emily-rclone-config \
+	--file ~/.config/rclone/rclone.conf
 ```
 
 ### Step 4: Configure rclone for Bella
@@ -79,17 +78,16 @@ rclone config
 # Follow same prompts, but:
 # Login with: isabellaleblanc@outlook.com
 
-# Export and encrypt
-cat ~/.config/rclone/rclone.conf > /tmp/bella-rclone.conf
-agenix -e secrets/bella-rclone-config.age
-# Paste contents, save and exit
+# Upload the config to Azure Key Vault
+az keyvault secret set \
+	--vault-name nix-kids-laptop \
+	--name bella-rclone-config \
+	--file ~/.config/rclone/rclone.conf
 ```
 
-### Step 5: Clean up temporary files
+### Step 5: Repeat for each user
 
-```bash
-rm /tmp/drew-rclone.conf /tmp/emily-rclone.conf /tmp/bella-rclone.conf
-```
+Once all three rclone configs are uploaded, run the bootstrap script on the target machine.
 
 ## Testing After Bootstrap
 
@@ -132,9 +130,8 @@ rclone mount onedrive: ~/OneDrive --vfs-cache-mode writes
 
 **Token expired:**
 - Re-run `rclone config` and reconnect the account
-- Re-encrypt the config with agenix
-- Commit and push changes
-- Re-run bootstrap or `nixos-rebuild switch`
+- Upload the updated `~/.config/rclone/rclone.conf` to Key Vault
+- Re-run bootstrap (or re-encrypt locally and restart the decrypt service)
 
 ## Notes
 

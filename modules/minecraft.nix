@@ -17,7 +17,7 @@ in
     # Dynamically set RAM allocation and create Minecraft directories
     home.activation.setupMinecraft = config.lib.dag.entryAfter ["writeBoundary"] ''
       # Calculate RAM allocation based on system memory
-      TOTAL_RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+      TOTAL_RAM_KB=$(${pkgs.gawk}/bin/awk '/^MemTotal:/ { print $2; exit }' /proc/meminfo)
       TOTAL_RAM_MB=$((TOTAL_RAM_KB / 1024))
       MAX_RAM_MB=$((TOTAL_RAM_MB / 2))
       MIN_RAM_MB=$((TOTAL_RAM_MB / 4))

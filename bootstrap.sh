@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # NixOS Kids Laptop Bootstrap Script
-# Usage: curl -L https://raw.githubusercontent.com/drewmacphee/nix-kids-laptop/main/bootstrap.sh | sudo bash
+# Usage: curl -L https://raw.githubusercontent.com/drewmacphee/nix-systems/main/bootstrap.sh | sudo bash
 
 set -euo pipefail
 
 REPO_URL="https://github.com/drewmacphee/nix-systems"
 VAULT_NAME="nix-systems-kv"
 TENANT_ID="6e2722da-5af4-4c0f-878a-42db4d068c86"
-CREDS_DIR="/var/lib/systemd/credential.secret"
+
+# Where encrypted *.cred files are stored (systemd "credstore")
+CREDS_DIR="/etc/credstore.encrypted"
+
+# Host secret used by systemd-creds when encrypting/decrypting with the default "host" key
+HOST_SECRET_FILE="/var/lib/systemd/credential.secret"
 
 # Error handler
 trap 'echo "ERROR: Bootstrap failed at line $LINENO. Check output above for details." >&2; exit 1' ERR
@@ -198,34 +203,70 @@ fi
 echo ""
 echo "Step 3: Encrypting and storing secrets with systemd-creds..."
 
+encrypt_credential() {
+  local input="$2"
+  local output="$3"
+  # systemd-creds requires the embedded name to match the filename when decrypting
+  local name=$(basename "$output")
+
+  # Prefer TPM/hardware binding if available, but fall back to host key for reliability.
+  if systemd-creds encrypt --with-key=auto --name="$name" "$input" "$output"; then
+    return 0
+  fi
+  echo "WARN: systemd-creds --with-key=auto failed; retrying with --with-key=host" >&2
+  systemd-creds encrypt --with-key=host --name="$name" "$input" "$output"
+}
+
+# Ensure the host secret is a file (a previous buggy run may have created it as a directory)
+if [ -d "$HOST_SECRET_FILE" ]; then
+  if [ -z "$(ls -A "$HOST_SECRET_FILE" 2>/dev/null || true)" ]; then
+    rmdir "$HOST_SECRET_FILE"
+  else
+    echo "ERROR: $HOST_SECRET_FILE is a directory (not empty); cannot continue."
+    echo "Fix by moving it aside, then re-run the bootstrap."
+    exit 1
+  fi
+fi
+
+echo "Ensuring systemd credential host secret exists..."
+if [ -f "$HOST_SECRET_FILE" ]; then
+  # systemd-creds refuses to use an existing host secret if permissions are too permissive.
+  chown root:root "$HOST_SECRET_FILE"
+  chmod 0400 "$HOST_SECRET_FILE"
+fi
+if ! systemd-creds setup; then
+  echo "ERROR: systemd-creds setup failed; cannot initialize host credential secret."
+  exit 1
+fi
+
+if [ ! -f "$HOST_SECRET_FILE" ]; then
+  echo "ERROR: Expected host secret at $HOST_SECRET_FILE after setup, but it was not found."
+  exit 1
+fi
+
 # Ensure credential directory exists
 mkdir -p "$CREDS_DIR"
 chmod 700 "$CREDS_DIR"
 
 # Encrypt and store each secret using systemd-creds
 echo "Encrypting rclone configs..."
-systemd-creds encrypt --name=drew-rclone /tmp/drew-rclone.conf "$CREDS_DIR/drew-rclone.cred" || exit 1
-systemd-creds encrypt --name=emily-rclone /tmp/emily-rclone.conf "$CREDS_DIR/emily-rclone.cred" || exit 1
-systemd-creds encrypt --name=bella-rclone /tmp/bella-rclone.conf "$CREDS_DIR/bella-rclone.cred" || exit 1
+encrypt_credential drew-rclone /tmp/drew-rclone.conf "$CREDS_DIR/drew-rclone.cred" || exit 1
+encrypt_credential emily-rclone /tmp/emily-rclone.conf "$CREDS_DIR/emily-rclone.cred" || exit 1
+encrypt_credential bella-rclone /tmp/bella-rclone.conf "$CREDS_DIR/bella-rclone.cred" || exit 1
 
 echo "Encrypting SSH keys..."
-# Create tarballs of SSH keys before encrypting
-tar -czf /tmp/drew-ssh-keys.tar.gz -C /tmp/drew-ssh-keys .
-tar -czf /tmp/emily-ssh-keys.tar.gz -C /tmp/emily-ssh-keys .
-tar -czf /tmp/bella-ssh-keys.tar.gz -C /tmp/bella-ssh-keys .
-
-systemd-creds encrypt --name=drew-ssh-keys /tmp/drew-ssh-keys.tar.gz "$CREDS_DIR/drew-ssh-keys.cred" || exit 1
-systemd-creds encrypt --name=emily-ssh-keys /tmp/emily-ssh-keys.tar.gz "$CREDS_DIR/emily-ssh-keys.cred" || exit 1
-systemd-creds encrypt --name=bella-ssh-keys /tmp/bella-ssh-keys.tar.gz "$CREDS_DIR/bella-ssh-keys.cred" || exit 1
+encrypt_credential drew-ssh-authorized-keys /tmp/drew-ssh-keys "$CREDS_DIR/drew-ssh-authorized-keys.cred" || exit 1
+encrypt_credential emily-ssh-authorized-keys /tmp/emily-ssh-keys "$CREDS_DIR/emily-ssh-authorized-keys.cred" || exit 1
+encrypt_credential bella-ssh-authorized-keys /tmp/bella-ssh-keys "$CREDS_DIR/bella-ssh-authorized-keys.cred" || exit 1
 
 echo "Encrypting user passwords..."
-systemd-creds encrypt --name=drew-password /tmp/drew-password "$CREDS_DIR/drew-password.cred" || exit 1
-systemd-creds encrypt --name=emily-password /tmp/emily-password "$CREDS_DIR/emily-password.cred" || exit 1
-systemd-creds encrypt --name=bella-password /tmp/bella-password "$CREDS_DIR/bella-password.cred" || exit 1
+encrypt_credential drew-password /tmp/drew-password "$CREDS_DIR/drew-password.cred" || exit 1
+encrypt_credential emily-password /tmp/emily-password "$CREDS_DIR/emily-password.cred" || exit 1
+encrypt_credential bella-password /tmp/bella-password "$CREDS_DIR/bella-password.cred" || exit 1
 
 echo "Encrypting WiFi credentials..."
-systemd-creds encrypt --name=wifi-ssid /tmp/wifi-ssid "$CREDS_DIR/wifi-ssid.cred" || exit 1
-systemd-creds encrypt --name=wifi-password /tmp/wifi-password "$CREDS_DIR/wifi-password.cred" || exit 1
+encrypt_credential wifi-ssid /tmp/wifi-ssid "$CREDS_DIR/wifi-ssid.cred" || exit 1
+encrypt_credential wifi-password /tmp/wifi-password "$CREDS_DIR/wifi-password.cred" || exit 1
 
 # Set secure permissions on encrypted credentials
 chmod 600 "$CREDS_DIR"/*.cred
@@ -266,18 +307,141 @@ fi
 echo "✓ Machine configuration ready for $HOSTNAME"
 
 echo ""
+echo "Step 4.5: Bootloader preflight..."
+
+HOST_CONFIG_FILE="/etc/nixos/hosts/$HOSTNAME/configuration.nix"
+HOST_HW_FILE="/etc/nixos/hosts/$HOSTNAME/hardware-configuration.nix"
+
+detect_root_disk() {
+  local root_src pk
+  root_src=$(findmnt -no SOURCE / 2>/dev/null || true)
+  if [ -z "$root_src" ]; then
+    echo ""
+    return 0
+  fi
+
+  if command -v lsblk >/dev/null 2>&1; then
+    pk=$(lsblk -no PKNAME "$root_src" 2>/dev/null || true)
+    if [ -n "$pk" ]; then
+      echo "/dev/$pk"
+      return 0
+    fi
+  fi
+
+  case "$root_src" in
+    /dev/nvme*n*p*) echo "${root_src%p*}" ;;
+    /dev/sd[a-z][0-9]*) echo "${root_src%[0-9]*}" ;;
+    /dev/vd[a-z][0-9]*) echo "${root_src%[0-9]*}" ;;
+    *) echo "" ;;
+  esac
+}
+
+patch_for_bios_grub() {
+  local disk
+  disk=$(detect_root_disk)
+  if [ -z "$disk" ]; then
+    disk="/dev/sda"
+    echo "WARN: Could not detect install disk for GRUB; defaulting to $disk" >&2
+  fi
+
+  # Disable systemd-boot/UEFI knobs if present
+  sed -i \
+    -e 's/^\s*boot\.loader\.systemd-boot\.enable\s*=\s*true\s*;\s*$/  boot.loader.systemd-boot.enable = false;/' \
+    -e 's/^\s*boot\.loader\.efi\.canTouchEfiVariables\s*=\s*true\s*;\s*$/  boot.loader.efi.canTouchEfiVariables = false;/' \
+    "$HOST_CONFIG_FILE" || true
+
+  # Ensure GRUB is enabled for BIOS installs
+  if ! grep -qE '^\s*boot\.loader\.grub\.enable\s*=\s*true\s*;' "$HOST_CONFIG_FILE"; then
+    cat >>"$HOST_CONFIG_FILE" <<EOF
+
+  # Added by bootstrap (legacy BIOS install)
+  boot.loader.systemd-boot.enable = false;
+  boot.loader.efi.canTouchEfiVariables = false;
+  boot.loader.grub.enable = true;
+  boot.loader.grub.device = "${disk}";
+EOF
+  else
+    # Update grub device if already present
+    if grep -qE '^\s*boot\.loader\.grub\.device\s*=\s*"[^"]+"\s*;' "$HOST_CONFIG_FILE"; then
+      sed -i -E "s|^\s*boot\.loader\.grub\.device\s*=\s*\"[^\"]+\"\s*;\s*$|  boot.loader.grub.device = \"${disk}\";|" "$HOST_CONFIG_FILE" || true
+    else
+      printf '\n  boot.loader.grub.device = "%s";\n' "$disk" >>"$HOST_CONFIG_FILE"
+    fi
+  fi
+}
+
+patch_for_uefi_systemd_boot() {
+  # Ensure an ESP is mounted before installing systemd-boot.
+  local esp=""
+
+  if mountpoint -q /boot/efi; then
+    esp="/boot/efi"
+  elif mountpoint -q /boot; then
+    esp="/boot"
+  elif [ -f "$HOST_HW_FILE" ] && grep -q 'fileSystems\."/boot/efi"' "$HOST_HW_FILE"; then
+    mkdir -p /boot/efi
+    mount /boot/efi 2>/dev/null || true
+    mountpoint -q /boot/efi && esp="/boot/efi"
+  elif [ -f "$HOST_HW_FILE" ] && grep -q 'fileSystems\."/boot"' "$HOST_HW_FILE"; then
+    mkdir -p /boot
+    mount /boot 2>/dev/null || true
+    mountpoint -q /boot && esp="/boot"
+  fi
+
+  if [ -z "$esp" ]; then
+    echo "ERROR: UEFI system detected but no EFI System Partition is mounted at /boot or /boot/efi."
+    echo "Fix by mounting your ESP, then re-run: sudo nixos-rebuild switch --flake .#$HOSTNAME"
+    exit 1
+  fi
+
+  # Ensure systemd-boot is enabled and GRUB is disabled.
+  sed -i \
+    -e 's/^\s*boot\.loader\.systemd-boot\.enable\s*=\s*false\s*;\s*$/  boot.loader.systemd-boot.enable = true;/' \
+    -e 's/^\s*boot\.loader\.efi\.canTouchEfiVariables\s*=\s*false\s*;\s*$/  boot.loader.efi.canTouchEfiVariables = true;/' \
+    "$HOST_CONFIG_FILE" || true
+
+  if ! grep -qE '^\s*boot\.loader\.systemd-boot\.enable\s*=\s*true\s*;' "$HOST_CONFIG_FILE"; then
+    cat >>"$HOST_CONFIG_FILE" <<EOF
+
+  # Added by bootstrap (UEFI install)
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+EOF
+  fi
+}
+
+if [ ! -f "$HOST_CONFIG_FILE" ]; then
+  echo "ERROR: Host configuration not found at $HOST_CONFIG_FILE"
+  exit 1
+fi
+
+if [ -d /sys/firmware/efi ]; then
+  echo "Detected UEFI boot"
+  patch_for_uefi_systemd_boot
+else
+  echo "Detected legacy BIOS boot"
+  patch_for_bios_grub
+fi
+
+echo ""
 echo "Step 5: Applying NixOS configuration..."
 echo "This will take several minutes (downloading packages)..."
 
 echo "Building NixOS configuration..."
 echo "This may take 10-30 minutes depending on internet speed..."
 
-# Add hardware-configuration.nix to git so flake can see it
-echo "Adding hardware-configuration.nix to git working tree..."
-git add -f hosts/$HOSTNAME/hardware-configuration.nix || {
-  echo "ERROR: Failed to add hardware-configuration.nix"
-  exit 1
-}
+# Add hardware-configuration.nix and patched configuration.nix to git
+echo "Committing configuration changes to git..."
+git add -f hosts/$HOSTNAME/hardware-configuration.nix
+git add hosts/$HOSTNAME/configuration.nix
+
+# Configure dummy git identity for the commit if needed
+if [ -z "$(git config user.name)" ]; then
+  git config user.name "Bootstrap Script"
+  git config user.email "root@localhost"
+fi
+
+git commit -m "Bootstrap: Auto-generated hardware-config and bootloader settings" || echo "Nothing to commit"
 
 if ! sudo nixos-rebuild switch --flake .#$HOSTNAME; then
   echo ""

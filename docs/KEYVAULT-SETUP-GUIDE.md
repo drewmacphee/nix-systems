@@ -13,13 +13,13 @@ Follow these steps to populate your Key Vault with all required secrets.
 
 ### On Windows:
 ```powershell
-cd C:\git\nix-kids-laptop
+cd C:\git\nix-systems
 .\setup-keyvault.ps1
 ```
 
 ### On Linux/Mac:
 ```bash
-cd /path/to/nix-kids-laptop
+cd /path/to/nix-systems
 chmod +x setup-keyvault.sh
 ./setup-keyvault.sh
 ```
