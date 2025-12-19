@@ -177,19 +177,23 @@ echo ""
 echo "Step 2: Cloning configuration repository..."
 
 # Detect if running from local repo
-SCRIPT_SOURCE="${BASH_SOURCE[0]}"
-# Resolve symlinks
-while [ -h "$SCRIPT_SOURCE" ]; do
-  DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
-  SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
-  [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$DIR/$SCRIPT_SOURCE"
-done
-SCRIPT_DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
-
+# BASH_SOURCE might be unbound if piped
+SCRIPT_SOURCE="${BASH_SOURCE[0]:-}"
 USE_LOCAL=false
-if [ -f "$SCRIPT_DIR/flake.nix" ] && [ -d "$SCRIPT_DIR/.git" ]; then
-  echo "Detected running from local repository: $SCRIPT_DIR"
-  USE_LOCAL=true
+
+if [ -n "$SCRIPT_SOURCE" ]; then
+  # Resolve symlinks
+  while [ -h "$SCRIPT_SOURCE" ]; do
+    DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
+    SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+    [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$DIR/$SCRIPT_SOURCE"
+  done
+  SCRIPT_DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
+
+  if [ -f "$SCRIPT_DIR/flake.nix" ] && [ -d "$SCRIPT_DIR/.git" ]; then
+    echo "Detected running from local repository: $SCRIPT_DIR"
+    USE_LOCAL=true
+  fi
 fi
 
 # Clean slate approach - backup existing config and preserve hardware-configuration.nix
