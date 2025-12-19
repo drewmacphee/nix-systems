@@ -20,6 +20,7 @@
     userSettings = {
       "update.mode" = "none";
       "extensions.autoUpdate" = false;
+      "git.enableSmartCommit" = true;
     };
   };
 }
