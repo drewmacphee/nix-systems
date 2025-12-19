@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, pkgs-unstable, ... }:
 
 {
   # Development tools for admin users
@@ -8,11 +8,11 @@
     git
   ];
   
-  # VS Code with extensions and settings
+  # VS Code with extensions and settings - using unstable for latest version
   programs.vscode = {
     enable = true;
-    package = pkgs.vscode;
-    extensions = with pkgs.vscode-extensions; [
+    package = pkgs-unstable.vscode;
+    extensions = with pkgs-unstable.vscode-extensions; [
       ms-python.python
       ms-vscode-remote.remote-ssh
       jnoortheen.nix-ide
