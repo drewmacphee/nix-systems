@@ -176,6 +176,22 @@ AZURE_LOGIN
 echo ""
 echo "Step 2: Cloning configuration repository..."
 
+# Detect if running from local repo
+SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+# Resolve symlinks
+while [ -h "$SCRIPT_SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+  [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$DIR/$SCRIPT_SOURCE"
+done
+SCRIPT_DIR="$( cd -P "$( dirname "$SCRIPT_SOURCE" )" >/dev/null 2>&1 && pwd )"
+
+USE_LOCAL=false
+if [ -f "$SCRIPT_DIR/flake.nix" ] && [ -d "$SCRIPT_DIR/.git" ]; then
+  echo "Detected running from local repository: $SCRIPT_DIR"
+  USE_LOCAL=true
+fi
+
 # Clean slate approach - backup existing config and preserve hardware-configuration.nix
 BACKUP_DIR=""
 if [ -d "/etc/nixos" ] && [ "$(ls -A /etc/nixos)" ]; then
@@ -189,13 +205,23 @@ fi
 mkdir -p /etc/nixos
 cd /etc/nixos
 
-echo "Cloning fresh configuration..."
-if ! retry_command git clone "$REPO_URL" .; then
-  echo "ERROR: Failed to clone configuration repository"
-  exit 1
+if [ "$USE_LOCAL" = true ]; then
+  echo "Copying configuration from local repository..."
+  cp -r "$SCRIPT_DIR"/. .
+  # Reset git to avoid issues with the user's repo ownership/state
+  rm -rf .git
+  git init
+  git add .
+  git commit -m "Initial commit from local bootstrap source"
+  echo "✓ Local configuration copied"
+else
+  echo "Cloning fresh configuration..."
+  if ! retry_command git clone "$REPO_URL" .; then
+    echo "ERROR: Failed to clone configuration repository"
+    exit 1
+  fi
+  echo "✓ Repository cloned successfully"
 fi
-
-echo "✓ Repository cloned successfully"
 
 # Copy hardware-configuration.nix to the correct host directory
 if [ -n "$BACKUP_DIR" ] && [ -f "$BACKUP_DIR/hardware-configuration.nix" ]; then
